@@ -3,7 +3,7 @@ README for forked additions to Guiders-JS
 Caveats
 --------------------------
 
-I am a amateur, embarrassingly bad hobbyist programmer. I wanted Guiders-JS to work a little differently, so I made some changes. The modified version seems to work, although I have not put it through rigorous field testing, so I figured I'd make the forked version available, if only as a demonstration of some functionality that a competent developer might add.
+I am an amateur, embarrassingly bad hobbyist programmer. I wanted Guiders-JS to work a little differently, so I made some changes. The modified version seems to work, although I have not put it through rigorous field testing, so I figured I'd make the forked version available, if only as a demonstration of some functionality that a competent developer might add.
 
 Thank you Jeff for creating Guiders, and GitHub for enabling amateurs to fork it all up.
 
@@ -20,4 +20,4 @@ If you set "position" to -1 and "attachedTo" to a document element's ID, the pag
 
 The space key now advances to the next guider.
 
-If you put in a button named "pause" and are using position= -1 option, a guider will have a button that moves the guider down so that only the top of its head is visible above the bottom of the window. Clicking anywhere in the visible portion of the guider, or pressing the space bar, brings the guider back into full view.
+If you put in a button named "pause" and are using the position= -1 option, a guider will display a Pause button that moves the guider down so that only the top of its head is visible above the bottom of the window. Clicking anywhere in the visible portion of the guider, or pressing the space bar, brings the guider back into full view.
