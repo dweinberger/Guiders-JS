@@ -25,33 +25,89 @@
  * - David Weinberger
  *   self@evident.com
  *   July 28, 2011
+ *
+ *  Added Back buttons -dw, August 5, 2011
+ *
+ *  Added Audio tour - dw August 26, 2011
+ *   Add an "audio" paramater to your guiders that points at an
+ *   audio file and it should play.
+ *
  */
  
- //alert("in guidertest.js");
  
  //---------------- dw additions ----------------
  
- // globals
+ // globals. Yes, globals. I'm an amateur.
 
- 
- var highlightBorderString = "#FF0000 6px dotted"; // color width style
+ // how to highlight an item?
+ var highlightBorderString = "#0099ff 2px solid"; //  Color the border of highlighted item
+ var highlightBackgroundString = "#F3FF91"; // put in a colored background for highlighted item
  
  var nextButtonPressed=false;
  var prevEl=null;
  var prevBorder=null;
+ var prevColor=null;
  var paused = false;
  var pausedGuider = null;
  var pauseButtonClicked = false;
+ var previousGuiderId = null;
+ // use a cookie so that if you go to a new page, the guider automatically shows up
+ var globalRunDemo = true; // set true if you want to ignore the cookie and always run the demo
+ var globalPlay = false; // automatically play audio commentary?
+ var stopAudioLabel = "Stop Audio Tour";
+ var playAudioLabel = "Start Audio Tour";
+ var showAudioControl = false;
  
  function scrollToElement(elll){
  
   var top = elll.offsetTop;
             $('html,body').animate({scrollTop: top}, 1000);
          }
+
+function guiderGetCookie()
+   // check cookie to see if we should show anything at all
+   {
+   var i,x,y,ARRcookies=document.cookie.split(";");
+	globalPlay = false; // default to off
+   for (i=0;i<ARRcookies.length;i++)
+   {
+	 x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
+	 y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
+	 x=x.replace(/^\s+|\s+$/g,""); // trim whitespace
+	 if (x=="doDemo")
+	   {
+	   if (y=="GUIDER_AUDIO_ON") {
+		  globalPlay = true;
+		  //alert("x=" + x + " y=" + y);
+	   }
+	   }
+	 }
+  
+}
+
+guiderGetCookie(); // wow, this has to be pretty ugly
+
+function guiderSetCookie(which){
+		  var cookieValue;
+		  if (which) {
+			cookieValue = "GUIDER_AUDIO_ON";
+		  }
+		  else {
+			cookieValue = "GUIDER_AUDIO_OFF";
+		 }
+		 var today = new Date();
+		 var expire = new Date();
+		  nDays=1;
+		 expire.setTime(today.getTime() + 3600000*24*nDays);
+		 document.cookie = "doDemo" +"="+escape(cookieValue)
+						 + ";expires="+expire.toGMTString();
+}
+
  
  // Highlight the element (dw)
 function highlightElement(el){
-  // Draw highlight around selected element, and restore previous element's original border
+  // Draw highlight around selected element and/or add colored background,
+  // and restore previous element's original border
   // el = #id
   
   // get the dom object
@@ -68,54 +124,170 @@ function highlightElement(el){
         else {
         	prevEl.style.borderWidth="0px";			// if previous element had none, set it to none 
         }
+        if (prevColor !== null) {
+            prevEl.style.backgroundColor = prevColor;		// set border of previous element to its previous border
+        }
+        else {
+        	prevEl.style.backgroundColor=null;;			// if previous element had none, set it to none 
+        }
     }
     
     // If there's an element that needs highlighting...
    
     if (typeof ell !== "undefined" && ell !== null) { // not a null element
     	var currentBorder = ell.style.border; 		  // capture current el's border
-    	ell.style.border= highlightBorderString; 	  // draw the new highlight border 
+    	var currentColor = ell.style.backgroundColor;
+    	ell.style.border= highlightBorderString; 	  // draw the new highlight border
+    	ell.style.backgroundColor=highlightBackgroundString; 
     	scrollToElement(ell);						  // scroll to it						  
    		prevEl = ell;								  // preserve this element, now as previous element
     	prevBorder = currentBorder;					  // and it's little dog, too.
+    	prevColor = currentColor;
     }
  }  
  
  
 function pause(mg){
- // If in bottom-hugging mode, pause it by lowering it so just its little head pokes above the bottom.
- // Unpause by clicking anywhere on the visible guider, or typing spacebar
+ // Pause it by lowering the bottom-hugging guider and displaying a translucent banner
+ // at the top.
+ // NOTE: This requires adding the pause banner as a hidden div in the page
+ // Unpause by clicking on the banner, or by typing a space
     if (mg.position !== -1) {return}; // exit if not in bottom hugging mode
     var myHeight = mg.elem.innerHeight();
 	var lowtop=window.innerHeight - 20;
- 	 mg.elem.css({
-       		"position":"fixed",
-        	"top": lowtop,
-      	})
     paused = true; 		// global
-    pausedGuider = mg; // capture guider itself
+    pausedGuider = mg; // capture guider itself as global
+    var pid = pausedGuider.id;
+    $("#" + pid).hide("slow");
     pauseButtonClicked = true;
+    // show the restore overlay
+    var pauseoverlay =     document.getElementById("overlayPauseGlider");
+    if ((pauseoverlay !== null) && (pauseoverlay !== undefined)){
+    	//pauseoverlay.style.display="block";
+    	$("#overlayPauseGlider").show("slow");
+    	}
+    	else { // if there is no overlay banner
+           alert("You've paused the demo tour.\n\nTo resume the demo tour, press the Space bar.\n\nIn case of emergency, reload the page, which will take you back to the first demo note on this page.\n\nClick the 'Ok' button on this popup to begin interacting with ShelfLife. ");
+    }
 }
 
 function unhideMe(){
- // restore height...if this isn't a click generated by clicking the pause button!
- // and if there is a paused guider, and if we are in fact paused.
-  if ((pauseButtonClicked == true) || (pausedGuider == null) || (!paused)) {
-      pauseButtonClicked = false;
+ // restore guider
+ 
+  // is the guider visible?
+  if (pausedGuider != null){
+    var pid = pausedGuider.id;
+  }
+  var pguider = document.getElementById(pid);
+  if (pguider.style.display !== "none") {
+      paused = true; // set the global
       return
-      }
-   var myHeight = pausedGuider.elem.innerHeight();
-   var toppos=window.innerHeight - (myHeight + 10);
-   pausedGuider.elem.css({ "top" : toppos});
-   
-  pausedGuider = null; // reset the damn globalds
+    }
+    
+    // if it is invisible, then show it
+    $("#" + pid).show("slow");
+     
+   // hide the overlay
+   var pauseoverlay =     document.getElementById("overlayPauseGlider");
+    if ((pauseoverlay !== null) && (pauseoverlay !== undefined)) {
+       $("#overlayPauseGlider").hide("slow");
+    }
+  pausedGuider = null; // reset the damn globals
   paused = false;
+  // make sure it doesn't repeat the audio
+  playTheAudio(pid, "SILENCE");
 
 }
+
+function getButtonFromId(gid,txt){
+   // give it the guider's id and the text on the buttonCustomHTML
+   var children = document.getElementById(gid).getElementsByTagName("*");
+   
+  		for (i=0; i < children.length; i++) {
+  		  // get text for each child
+  		  ctxt = children[i].text;
+  		  if (ctxt == txt){
+  		    var btn = children[i];
+  		    }
+  		}
+  		
+  return btn;
+}
+
+function stopTheAudio(curid){
+    var curguide = document.getElementById(curid);
+   var children = curguide.getElementsByTagName("*");
+       for (i=0; i < children.length; i++) {
+       	if (children[i].id == "audiodiv"){
+       	    var par = children[i].parentNode;
+       	    par.removeChild(children[i]);
+       	}
+       	}
+}
+
+function playTheAudio(id, source){
+		// get the audio button within this guider
+		
+  		var myguide = document.getElementById(id);
+  		var btn = getButtonFromId(id,playAudioLabel);
+  		if (btn == null) {
+  		  btn = getButtonFromId(id,stopAudioLabel);
+  		  }
+  		  
+  		  if (btn == null) {return} // if no audio button, then skeedaddle
+  		    	
+        // did we click on a stop playing button?
+       if (btn.text == stopAudioLabel){
+           globalPlay = false;
+           btn.innerHTML = playAudioLabel;
+           }
+        else {
+          globalPlay = true;
+           btn.innerHTML = stopAudioLabel;
+        
+        }
+        
+         // set a cookie so the next page will know what to document
+       	 guiderSetCookie(globalPlay);
+       	  
+           
+       // if there's already a div playing, get rid of it
+       stopTheAudio(id);
+       	
+       	if (source == "SILENCE") { 
+       	return
+       	}
+       	
+       	var guiderSpot = null
+       if ((globalPlay) && (source != "SILENCE")) {
+		 // create a div that will play it
+		 
+		 // find the description paragraph to append the play statement to
+		 children = myguide.getElementsByTagName("p");
+		 for (i=0; i < children.length; i++){
+		 	if (children[i].className == "guider_description"){
+		 	guiderSpot = children[i];
+		 	}
+		 }
+		  
+		  if (guiderSpot != null){
+		  
+		    audiodiv = document.createElement("div");	 
+		 	audiodiv.setAttribute("id","audiodiv");
+		 	
+		 	var audiostring = '-+[Playing]+-' + '<embed type="application/x-shockwave-flash" flashvars="playerMode=embedded" src="http://www.google.com/reader/ui/3523697345-audio-player.swf?audioUrl='+source+'&autoPlay=true" width="400" height="27" quality="best" autostart="true" hidden="true"></embed>';
+
+		 	audiodiv.innerHTML = audiostring;
+		 	guiderSpot.appendChild(audiodiv);
+		 	
+       	 }
+    }
+}
+
+
 //----- end of dw additions ----------------------
 
 var guider = (function($){
-
 // get window width
 var winwid = window.innerWidth;
   var guider = {
@@ -129,10 +301,12 @@ var winwid = window.innerWidth;
       overlay: false,
       position: 0, // 1-12 follows an analog clock, 0 means centered
       title: "Sample title goes here",
-      width: (winwid - 400),
+      width: 650,//(winwid - 400),
+      audio: null, //(dw)
+      previousId: null, // (dw ... for the Back button)
       
     },
-
+ 
   _htmlSkeleton: [
       "<div class='guider'>",
       "  <div class='guider_content'>",
@@ -154,14 +328,15 @@ var winwid = window.innerWidth;
     _lastCreatedGuiderID: null,
     _lastHighlightedElement:null,
 //------ BUTTONS
-    _addButtons: function(myGuider) {
+    _addButtons: function(myGuider) { 
     
       // Add buttons
       var guiderButtonsContainer = myGuider.elem.find(".guider_buttons");
       for (var i = myGuider.buttons.length-1; i >= 0; i--) {
         var thisButton = myGuider.buttons[i];
-        var thisButtonElem = $("<a></a>", {
-                                "class" : "guider_button",
+        var thisButtonElem = $("<a></a>", { // added id (dw)
+                                "class" : "guider_button b" +  i,
+                                "btntype" : thisButton.name,
                                 "text" : thisButton.name });
         if (typeof thisButton.classString !== "undefined" && thisButton.classString !== null) {
           thisButtonElem.addClass(thisButton.classString);
@@ -176,10 +351,18 @@ var winwid = window.innerWidth;
         } else if (!thisButton.onclick && thisButton.name.toLowerCase() === "next") {
           thisButtonElem.bind("click", function() { guider.next(); });
         } 
-        // dw addition
+        // Pause button (dw)
          else if (!thisButton.onclick && thisButton.name.toLowerCase() === "pause") {
           thisButtonElem.bind("click", function() { pause(myGuider); });
         }
+        // Back buton (dw)
+         else if (!thisButton.onclick && thisButton.name.toLowerCase() === "back") {
+          thisButtonElem.bind("click", function() { guider.back(); });
+        }
+        // audio buton (dw)
+         else if ((!thisButton.onclick) &&  ((thisButton.name.toLowerCase()).indexOf("audio") > -1)) {
+          thisButtonElem.bind("click", function() { guider.playAudio(); });
+        }    
       }
  
 
@@ -187,7 +370,7 @@ var winwid = window.innerWidth;
         var myCustomHTML = $(myGuider.buttonCustomHTML);
         myGuider.elem.find(".guider_buttons").append(myCustomHTML);
       }
-    },
+     },
 //------- ATTACH
        _attach: function(myGuider) {
       if (typeof myGuider.attachTo === "undefined" || myGuider === null) {
@@ -200,7 +383,7 @@ var winwid = window.innerWidth;
     // if position = -1, then put it on the bottom [dw]
     
     if (myGuider.position === -1) {
-    	var toppos=window.innerHeight - (myHeight + 10);
+    	var toppos=window.innerHeight - (myHeight + 30);
     	var leftpos = (window.innerWidth - myWidth) / 2;
     	var wd = (window.innerWidth - 50) + "px";
      	 myGuider.elem.css({
@@ -352,6 +535,7 @@ var winwid = window.innerWidth;
       if (typeof currentGuider === "undefined") {
         return;
       }
+      stopTheAudio(guider._currentGuiderID);
       var nextGuiderId = currentGuider.next || null;
       if (nextGuiderId !== null && nextGuiderId !== "") {
         var myGuider = guider._guiderById(nextGuiderId);
@@ -361,6 +545,37 @@ var winwid = window.innerWidth;
       
       }
     },
+    
+        // BACK function (dw)
+    back: function() {
+      var currentGuider = guider._guiders[guider._currentGuiderID];
+      if ((typeof currentGuider === "undefined") || (currentGuider.previousId === null)) {
+        return;
+      }
+      var previousGuider =guider._guiders[guider._lastCreatedGuiderID] || null;
+      if (previousGuider !== null && previousGuider !== "") {
+        //var previousGuiderID = previousGuider.id;
+        var previousGuiderId = currentGuider.previousId;
+        var myGuider = guider._guiderById(previousGuiderId);
+        var omitHidingOverlay = myGuider.overlay ? true : false;
+        guider.hideAll(omitHidingOverlay);
+       
+        guider.show(previousGuiderId);
+      
+      }
+    },
+    
+    // ----------- AUDIO function (dw)
+    playAudio: function() {
+   		 // get the guider
+   		 var myguide = guider._guiders[guider._currentGuiderID];
+   		 var id = guider._currentGuiderID;
+      	 // get the button
+      	 playTheAudio(id,myguide.audio);
+      	 return 
+        },
+     
+    
 
     createGuider: function(passedSettings) {
       if (passedSettings === null || passedSettings === undefined) {
@@ -376,27 +591,16 @@ var winwid = window.innerWidth;
       myGuider.elem.css("width", myGuider.width + "px");
       guiderElement.find("h1.guider_title").html(myGuider.title);
       guiderElement.find("p.guider_description").html(myGuider.description);
+      guiderElement.find("span.guider_audio").html("Audio");
 
       guider._addButtons(myGuider);
 
       guiderElement.hide();
       guiderElement.appendTo("body");
       guiderElement.attr("id", myGuider.id);
-           
-     
-     // return from semi-hidden state (dw)
-     guiderElement.bind("click", function(){
-     	unhideMe();
-     	
-     	});
-     
-     
-     
-        //guiderElement.addEventListener('click',function () {
-    //this.style.backgroundColor = '#cc0000'},false);
-    
-      
-      
+      myGuider.previousId = previousGuiderId; //(dw)
+      previousGuiderId = myGuider.id;
+          
 
       // Ensure myGuider.attachTo is a jQuery element.
       if (typeof myGuider.attachTo !== "undefined" && myGuider !== null) {
@@ -433,8 +637,10 @@ var winwid = window.innerWidth;
       return guider;
     },
 
- // SHOW function
+
+ // ---------------SHOW function
     show: function(id) {
+     
       if (!id && guider._lastCreatedGuiderID) {
         id = guider._lastCreatedGuiderID;
       }
@@ -447,15 +653,33 @@ var winwid = window.innerWidth;
        
       // You can use an onShow function to take some action before the guider is shown.
       if (myGuider.onShow) {
-        myGuider.onShow(myGuider);
-      }
-       
+        myGuider.onShow(myGuider);        
+        }
+      
       guider._attach(myGuider);
+      
+      
+        // Audio tour (dw)
+        // stop the current one from playing
+        var prevID = guider._currentGuiderID;
+        if ((prevID!= undefined) && (prevID !== null)) {
+        	stopTheAudio(prevID);
+        	}
+        
+        if (globalPlay){
+           playTheAudio(id,myGuider.audio);
+           // change the label
+           var btn = getButtonFromId(id,playAudioLabel);
+           if (btn != null) { // it's a "play audio" label so it needs to be changed
+           		btn.text = stopAudioLabel;
+           }
+        }
+        
+      
       
  // ---- HIGHLIGHT IT [dw]
       var elem = $(myGuider.attachTo);
       var elem1 = elem.selector;
-      //elem1 = myGuider.elem;
       highlightElement(elem1);
       
       myGuider.elem.fadeIn("fast");
@@ -465,7 +689,7 @@ var winwid = window.innerWidth;
       var guiderOffset = myGuider.elem.offset();
       var guiderElemHeight = myGuider.elem.height();
       
-      // don't scroll to the guider if position = -1 [dw]
+      // don't scroll to the guider if position != -1 [dw]
       var myGuiderPosition = myGuider.position;
       if ((myGuiderPosition != -1) && (guiderOffset.top - scrollHeight < 0 ||
          guiderOffset.top + guiderElemHeight + 40 > scrollHeight + windowHeight)) {
@@ -483,6 +707,8 @@ var winwid = window.innerWidth;
   return guider;
 }).call(this, jQuery);
 
+
+// bind space bar to Next Guider (dw)
  function keyHandler(e)
  {
  	var pressedKey;
@@ -491,13 +717,37 @@ var winwid = window.innerWidth;
  	if (document.all)	{ pressedKey = e.keyCode; }
  
  	pressedCharacter = String.fromCharCode(pressedKey);
- 	//alert(e + ' Character = ' + pressedCharacter + ' [Decimal value = ' + pressedKey + ']');
- 	if (pressedKey==32){
- 		//alert("SPACE");
+ 	var el = document.activeElement;
+ 	var elt = el.tagName.toLowerCase();
+ 	if ( (elt != "textarea") && (elt != "input") && (pressedKey==32)){
+ 		// if we're paused, then we're going to be unhidden. So hide the pause ribbon at the top
+ 		  	var pauseoverlay =     document.getElementById("overlayPauseGlider");
+    		if ((pauseoverlay !== null) && (pauseoverlay !== undefined)) {
+      	 		$("#overlayPauseGlider").hide("slow");
+    		}
+ 		
+ 		var myguide = guider._guiders[guider._currentGuiderID];
+ 		var gid = myguide.id;
+ 		var btns = myguide.buttons;
+ 		var nextbtn = null;
+ 		// find the next button
+ 		for (var i=0; i < btns.length; i++) {
+ 		   if (btns[i].name = "Next") {
+ 		      nextbtn = btns[i];
+ 		   }
+ 		}
+ 		if (nextbtn == null) { return }
+ 		
+ 		var nextAct = myguide.next;
+ 		if (( nextAct === null) || (nextAct == undefined)) { // if no next guider specified, then do the click
+ 		   stopTheAudio(gid);
+ 		   nextbtn.onclick();
+ 		   return
+ 		}
+ 		
+ 		
  		guider.next();
  		}
  	else { nextButtonPressed=false;}
  }
  document.onkeypress = keyHandler;
- 
- 
