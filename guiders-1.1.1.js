@@ -29,7 +29,7 @@
  *  Added Back buttons -dw, August 5, 2011
  *
  *  Added Audio tour - dw August 26, 2011
- *   Add an "audio" paramater to your guiders that points at an
+ *   Add an "audio" parameter to your guiders that points at an
  *   audio file and it should play.
  *
  */
